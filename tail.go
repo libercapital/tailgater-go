@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/rs/zerolog/log"
 	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/amqp"
 	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/database"
 	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/pgoutput"
@@ -68,6 +69,9 @@ func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.Amqp
 	if err := sub.Start(ctx, &conn, handler); err != nil {
 		return fmt.Errorf("error handling tail message: %w", err)
 	}
+
+	log.Info().
+		Msg("tailgater subscriber connected successfully")
 
 	return nil
 }
