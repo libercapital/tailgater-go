@@ -8,6 +8,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const ERRCODE_DUPLICATE_OBJECT string = "42710"
+
 type DatabaseConfig struct {
 	DbHost     string
 	DbDatabase string
@@ -15,8 +17,6 @@ type DatabaseConfig struct {
 	DbPassword string
 	DbPort     string
 }
-
-const ERRCODE_DUPLICATE_OBJECT string = "42710"
 
 func Connect(config DatabaseConfig) (error, pgx.ReplicationConn) {
 	port, err := strconv.ParseUint(config.DbPort, 10, 16)
