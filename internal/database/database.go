@@ -6,27 +6,20 @@ import (
 
 	"github.com/jackc/pgx"
 	"github.com/rs/zerolog/log"
+	tg_models "gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/models"
 )
 
 const ERRCODE_DUPLICATE_OBJECT string = "42710"
 
-type DatabaseConfig struct {
-	DbHost     string
-	DbDatabase string
-	DbUser     string
-	DbPassword string
-	DbPort     string
-}
-
-func Connect(config DatabaseConfig) (error, pgx.ReplicationConn) {
+func Connect(config tg_models.DatabaseConfig) (pgx.ReplicationConn, error) {
 	port, err := strconv.ParseUint(config.DbPort, 10, 16)
 	if err != nil {
-		return err, pgx.ReplicationConn{}
+		return pgx.ReplicationConn{}, err
 	}
 	dbConfig := pgx.ConnConfig{Database: config.DbDatabase, User: config.DbUser, Password: config.DbPassword, Host: config.DbHost, Port: uint16(port)}
 	conn, err := pgx.ReplicationConnect(dbConfig)
 	if err != nil {
-		return err, pgx.ReplicationConn{}
+		return pgx.ReplicationConn{}, err
 	}
 
 	if err := conn.CreateReplicationSlot("outbox_subscription", "pgoutput"); err != nil {
@@ -34,7 +27,7 @@ func Connect(config DatabaseConfig) (error, pgx.ReplicationConn) {
 		if err.(pgx.PgError).Code == ERRCODE_DUPLICATE_OBJECT {
 			log.Warn().Stack().Err(err).Msg("failed to create replication slot")
 		} else {
-			return err, pgx.ReplicationConn{}
+			return pgx.ReplicationConn{}, err
 		}
 	}
 
@@ -42,10 +35,10 @@ func Connect(config DatabaseConfig) (error, pgx.ReplicationConn) {
 		if err.(pgx.PgError).Code == ERRCODE_DUPLICATE_OBJECT {
 			log.Warn().Stack().Err(err).Msg("failed to create publication")
 		} else {
-			return err, pgx.ReplicationConn{}
+			return pgx.ReplicationConn{}, err
 		}
 	}
 
-	return nil, *conn
+	return *conn, nil
 
 }

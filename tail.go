@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/app/amqp"
-	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/app/database"
-	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/app/pgoutput"
+	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/amqp"
+	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/database"
+	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/pgoutput"
+	tg_models "gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/models"
 )
 
-func StartFollowing(dbConfig database.DatabaseConfig, amqpConfig amqp.Config) error {
+func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.AmqpConfig) error {
 	ctx := context.Background()
-	err, conn := database.Connect(dbConfig)
+	conn, err := database.Connect(dbConfig)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database with error: %w", err)
 	}
