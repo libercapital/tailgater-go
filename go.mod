@@ -10,7 +10,6 @@ require (
 	github.com/lib/pq v1.10.3 // indirect
 	github.com/rs/zerolog v1.26.0
 	github.com/shopspring/decimal v1.2.0 // indirect
-	gitlab.com/bavatech/architecture/software/libs/go-modules/envloader.git v1.1.1
 	gitlab.com/bavatech/architecture/software/libs/go-modules/rabbitmq-client.git v1.0.1
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	golang.org/x/text v0.3.7 // indirect

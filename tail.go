@@ -1,4 +1,4 @@
-package tail
+package tailgate
 
 import (
 	"context"
@@ -10,14 +10,14 @@ import (
 	"gitlab.com/tailgater/internal/pgoutput"
 )
 
-func StartFollowing() error {
+func StartFollowing(dbConfig database.DatabaseConfig, amqpConfig amqp.Config) error {
 	ctx := context.Background()
-	err, conn := database.Connect(database.DatabaseConfig{DbHost: Env.DbHost, DbDatabase: Env.DbName, DbUser: Env.DbUser, DbPassword: Env.DbPassword, DbPort: Env.DbPort})
+	err, conn := database.Connect(dbConfig)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database with error: %w", err)
 	}
 
-	amqpClient := amqp.NewClient(amqp.Config{Host: Env.AmqpHost, User: Env.AmqpUser, Password: Env.AmqpPassword, VHost: Env.AmqpVHost, Protocol: Env.AmqpProtocol})
+	amqpClient := amqp.NewClient(amqpConfig)
 
 	set := pgoutput.NewRelationSet()
 
