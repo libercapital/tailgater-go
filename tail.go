@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"gitlab.com/tailgater/internal/amqp"
-	"gitlab.com/tailgater/internal/database"
-	"gitlab.com/tailgater/internal/pgoutput"
+	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/amqp"
+	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/database"
+	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/pgoutput"
 )
 
 func StartFollowing(dbConfig database.DatabaseConfig, amqpConfig amqp.Config) error {

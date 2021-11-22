@@ -1,4 +1,4 @@
-module gitlab.com/tailgater
+module gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git
 
 go 1.16
 
