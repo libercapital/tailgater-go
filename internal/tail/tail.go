@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/kyleconroy/pgoutput"
 	"gitlab.com/tailgater/internal/amqp"
 	"gitlab.com/tailgater/internal/database"
+	"gitlab.com/tailgater/internal/pgoutput"
 )
 
 func StartFollowing() error {
