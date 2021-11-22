@@ -1,4 +1,4 @@
-package tailgate
+package tailgater
 
 import (
 	"context"
