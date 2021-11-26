@@ -11,7 +11,7 @@ import (
 
 const ERRCODE_DUPLICATE_OBJECT string = "42710"
 
-func Connect(config tg_models.DatabaseConfig) (pgx.ReplicationConn, error) {
+func Connect(config tg_models.DatabaseConfig, subscriberName string) (pgx.ReplicationConn, error) {
 	port, err := strconv.ParseUint(config.DbPort, 10, 16)
 	if err != nil {
 		return pgx.ReplicationConn{}, err
@@ -22,7 +22,7 @@ func Connect(config tg_models.DatabaseConfig) (pgx.ReplicationConn, error) {
 		return pgx.ReplicationConn{}, err
 	}
 
-	if err := conn.CreateReplicationSlot("outbox_subscription", "pgoutput"); err != nil {
+	if err := conn.CreateReplicationSlot(subscriberName, "pgoutput"); err != nil {
 		fmt.Printf("CODE MESSAGE %v", err.(pgx.PgError).Code)
 		if err.(pgx.PgError).Code == ERRCODE_DUPLICATE_OBJECT {
 			log.Warn().Stack().Err(err).Msg("failed to create replication slot")

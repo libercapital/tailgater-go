@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/amqp"
+	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/constants"
 	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/database"
 	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/pgoutput"
 	tg_models "gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/models"
@@ -14,7 +16,8 @@ import (
 
 func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.AmqpConfig) error {
 	ctx := context.Background()
-	conn, err := database.Connect(dbConfig)
+	subscriberName := constants.SubscriberBase + "_" + uuid.NewString()
+	conn, err := database.Connect(dbConfig, subscriberName)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database with error: %w", err)
 	}
@@ -65,7 +68,7 @@ func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.Amqp
 		return nil
 	}
 
-	sub := pgoutput.NewSubscription("outbox_subscription", "outbox_publication")
+	sub := pgoutput.NewSubscription(subscriberName, "outbox_publication")
 	log.Info().
 		Msg("tailgater subscriber connected successfully")
 	if err := sub.Start(ctx, &conn, handler); err != nil {
