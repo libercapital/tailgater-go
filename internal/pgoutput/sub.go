@@ -3,7 +3,6 @@ package pgoutput
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/jackc/pgx"
@@ -91,7 +90,6 @@ func (s *Subscription) Start(ctx context.Context, conn *pgx.ReplicationConn, h H
 	for {
 		select {
 		case <-tick:
-			log.Println("pub status")
 			if maxWal == 0 {
 				continue
 			}
@@ -123,7 +121,6 @@ func (s *Subscription) Start(ctx context.Context, conn *pgx.ReplicationConn, h H
 			}
 			if message.ServerHeartbeat != nil {
 				if message.ServerHeartbeat.ReplyRequested == 1 {
-					log.Println("server wants a reply")
 					if err := sendStatus(); err != nil {
 						return err
 					}

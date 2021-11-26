@@ -6,15 +6,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"gitlab.com/bavatech/architecture/software/libs/go-modules/rabbitmq-client.git/app/client"
 	"gitlab.com/bavatech/architecture/software/libs/go-modules/rabbitmq-client.git/app/models"
+	tg_model "gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/models"
 )
-
-type Config struct {
-	Host     string
-	User     string
-	Password string
-	Protocol string
-	VHost    string
-}
 
 type AMQPService interface {
 	Publish(ctx context.Context, exchange string, routerKey string, corrID string, payload string) error
@@ -25,7 +18,7 @@ type amqpServiceImpl struct {
 	publisher client.Publisher
 }
 
-func NewClient(config Config) AMQPService {
+func NewClient(config tg_model.AmqpConfig) AMQPService {
 	credential := models.Credential{
 		Host:     config.Host,
 		User:     config.User,

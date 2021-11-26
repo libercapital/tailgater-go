@@ -1,23 +1,28 @@
-package tail
+package tailgater
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 
-	"gitlab.com/tailgater/internal/amqp"
-	"gitlab.com/tailgater/internal/database"
-	"gitlab.com/tailgater/internal/pgoutput"
+	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
+	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/amqp"
+	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/constants"
+	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/database"
+	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/pgoutput"
+	tg_models "gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/models"
 )
 
-func StartFollowing() error {
+func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.AmqpConfig) error {
 	ctx := context.Background()
-	err, conn := database.Connect(database.DatabaseConfig{DbHost: Env.DbHost, DbDatabase: Env.DbName, DbUser: Env.DbUser, DbPassword: Env.DbPassword, DbPort: Env.DbPort})
+	subscriberName := constants.SubscriberBase + "_" + uuid.NewString()
+	conn, err := database.Connect(dbConfig, subscriberName)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database with error: %w", err)
 	}
 
-	amqpClient := amqp.NewClient(amqp.Config{Host: Env.AmqpHost, User: Env.AmqpUser, Password: Env.AmqpPassword, VHost: Env.AmqpVHost, Protocol: Env.AmqpProtocol})
+	amqpClient := amqp.NewClient(amqpConfig)
 
 	set := pgoutput.NewRelationSet()
 
@@ -63,7 +68,9 @@ func StartFollowing() error {
 		return nil
 	}
 
-	sub := pgoutput.NewSubscription("outbox_subscription", "outbox_publication")
+	sub := pgoutput.NewSubscription(subscriberName, "outbox_publication")
+	log.Info().
+		Msg("tailgater subscriber connected successfully")
 	if err := sub.Start(ctx, &conn, handler); err != nil {
 		return fmt.Errorf("error handling tail message: %w", err)
 	}
