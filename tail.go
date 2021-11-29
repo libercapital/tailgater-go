@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/google/uuid"
+	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/amqp"
-	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/constants"
 	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/database"
 	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/pgoutput"
 	tg_models "gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/models"
@@ -16,7 +15,7 @@ import (
 
 func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.AmqpConfig) error {
 	ctx := context.Background()
-	subscriberName := constants.SubscriberBase + "_" + uuid.NewString()
+	subscriberName := namesgenerator.GetRandomName(1)
 	conn, err := database.Connect(dbConfig, subscriberName)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database with error: %w", err)
