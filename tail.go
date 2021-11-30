@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
+	"time"
 
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/rs/zerolog/log"
@@ -15,7 +17,10 @@ import (
 
 func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.AmqpConfig) error {
 	ctx := context.Background()
+
+	rand.Seed(time.Now().UnixNano())
 	subscriberName := namesgenerator.GetRandomName(1)
+
 	conn, err := database.Connect(dbConfig, subscriberName)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database with error: %w", err)
