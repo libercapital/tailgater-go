@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/jackc/pgx"
@@ -11,34 +10,49 @@ import (
 
 const ERRCODE_DUPLICATE_OBJECT string = "42710"
 
-func Connect(config tg_models.DatabaseConfig, subscriberName string) (pgx.ReplicationConn, error) {
+func CreateHeartbeatTable(conn *pgx.Conn) error {
+	_, err := conn.Exec(`CREATE TABLE IF NOT EXISTS	_heartbeat (id bigint NOT NULL, last_heartbeat timestamptz NOT NULL);`)
+	return err
+}
+
+func InsertHeartbeat(conn *pgx.Conn) {
+	_, err := conn.Exec(`WITH upsert AS
+	(UPDATE _heartbeat SET last_heartbeat=current_timestamp WHERE id=1 RETURNING *)
+	INSERT INTO _heartbeat (id, last_heartbeat) SELECT 1, current_timestamp
+	WHERE NOT EXISTS (SELECT * FROM upsert);`)
+	if err != nil {
+		log.Warn().Stack().Err(err).Msg("failed to insert heartbeat row")
+	}
+}
+
+func Connect(config tg_models.DatabaseConfig) (*pgx.ReplicationConn, *pgx.Conn, error) {
 	port, err := strconv.ParseUint(config.DbPort, 10, 16)
 	if err != nil {
-		return pgx.ReplicationConn{}, err
+		return nil, nil, err
 	}
 	dbConfig := pgx.ConnConfig{Database: config.DbDatabase, User: config.DbUser, Password: config.DbPassword, Host: config.DbHost, Port: uint16(port)}
-	conn, err := pgx.ReplicationConnect(dbConfig)
+	repConn, err := pgx.ReplicationConnect(dbConfig)
 	if err != nil {
-		return pgx.ReplicationConn{}, err
+		return nil, nil, err
 	}
 
-	if err := conn.CreateReplicationSlot(subscriberName, "pgoutput"); err != nil {
-		fmt.Printf("CODE MESSAGE %v", err.(pgx.PgError).Code)
-		if err.(pgx.PgError).Code == ERRCODE_DUPLICATE_OBJECT {
-			log.Warn().Stack().Err(err).Msg("failed to create replication slot")
-		} else {
-			return pgx.ReplicationConn{}, err
-		}
+	dbConn, err := pgx.Connect(dbConfig)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	if _, err := conn.Exec("CREATE PUBLICATION outbox_publication FOR TABLE outbox;"); err != nil {
+	if _, err := repConn.Exec("CREATE PUBLICATION outbox_publication FOR TABLE outbox;"); err != nil {
 		if err.(pgx.PgError).Code == ERRCODE_DUPLICATE_OBJECT {
 			log.Warn().Stack().Err(err).Msg("failed to create publication")
 		} else {
-			return pgx.ReplicationConn{}, err
+			return nil, nil, err
 		}
 	}
 
-	return *conn, nil
+	if err := CreateHeartbeatTable(dbConn); err != nil {
+		log.Warn().Stack().Err(err).Msg("error to create heartbeat table")
+	}
+
+	return repConn, dbConn, nil
 
 }
