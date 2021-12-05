@@ -21,7 +21,7 @@ func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.Amqp
 	rand.Seed(time.Now().UnixNano())
 	subscriberName := namesgenerator.GetRandomName(1)
 
-	conn, err := database.Connect(dbConfig, subscriberName)
+	repConn, dbConn, err := database.Connect(dbConfig)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database with error: %w", err)
 	}
@@ -72,10 +72,24 @@ func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.Amqp
 		return nil
 	}
 
+	ticker := time.NewTicker(5 * time.Minute)
+	quit := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				database.InsertHeartbeat(dbConn)
+			case <-quit:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+
 	sub := pgoutput.NewSubscription(subscriberName, "outbox_publication")
 	log.Info().
 		Msgf("%v: tailgater subscriber connected successfully", subscriberName)
-	if err := sub.Start(ctx, &conn, handler); err != nil {
+	if err := sub.Start(ctx, repConn, handler); err != nil {
 		return fmt.Errorf("error handling tail message: %w", err)
 	}
 
