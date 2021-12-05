@@ -25,6 +25,38 @@ func InsertHeartbeat(conn *pgx.Conn) {
 	}
 }
 
+func DropInactiveReplicationSlots(conn *pgx.Conn, repConn *pgx.ReplicationConn) {
+	type ReplicationSlot struct {
+		SlotName string
+	}
+
+	rows, err := conn.Query(`select slot_name from pg_replication_slots where active = 'f'`)
+	if err != nil {
+		log.Warn().Stack().Err(err).Msg("failed to query for inative replication slots")
+	}
+	defer rows.Close()
+
+	var inactiveSlots []ReplicationSlot
+	for rows.Next() {
+		var r ReplicationSlot
+		err := rows.Scan(&r.SlotName)
+		if err != nil {
+			log.Warn().Stack().Err(err).Msg("failed to scan for inative replication slots")
+		}
+		inactiveSlots = append(inactiveSlots, r)
+	}
+	if err := rows.Err(); err != nil {
+		log.Warn().Stack().Err(err).Msg("failed to iterate for inative replication slots")
+	}
+
+	for _, items := range inactiveSlots {
+		_, err := conn.Exec("select pg_drop_replication_slot($1)", items.SlotName)
+		if err != nil {
+			log.Warn().Stack().Err(err).Msg("failed to drop inactive replication slot")
+		}
+	}
+}
+
 func Connect(config tg_models.DatabaseConfig) (*pgx.ReplicationConn, *pgx.Conn, error) {
 	port, err := strconv.ParseUint(config.DbPort, 10, 16)
 	if err != nil {

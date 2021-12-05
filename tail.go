@@ -72,7 +72,7 @@ func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.Amqp
 		return nil
 	}
 
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(10 * time.Minute)
 	quit := make(chan struct{})
 	go func() {
 		for {
@@ -81,6 +81,20 @@ func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.Amqp
 				database.InsertHeartbeat(dbConn)
 			case <-quit:
 				ticker.Stop()
+				return
+			}
+		}
+	}()
+
+	dropTicker := time.NewTicker(30 * time.Minute)
+	quitDropTicker := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-dropTicker.C:
+				database.DropInactiveReplicationSlots(dbConn, repConn)
+			case <-quitDropTicker:
+				dropTicker.Stop()
 				return
 			}
 		}
