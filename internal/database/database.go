@@ -1,22 +1,25 @@
 package database
 
 import (
+	"context"
+	"fmt"
 	"strconv"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rs/zerolog/log"
 	tg_models "gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/models"
 )
 
 const ERRCODE_DUPLICATE_OBJECT string = "42710"
 
-func CreateHeartbeatTable(conn *pgx.Conn) error {
-	_, err := conn.Exec(`CREATE TABLE IF NOT EXISTS	_heartbeat (id bigint NOT NULL, last_heartbeat timestamptz NOT NULL);`)
+func CreateHeartbeatTable(conn *pgxpool.Pool) error {
+	_, err := conn.Exec(context.TODO(), `CREATE TABLE IF NOT EXISTS	_heartbeat (id bigint NOT NULL, last_heartbeat timestamptz NOT NULL);`)
 	return err
 }
 
-func InsertHeartbeat(conn *pgx.Conn) {
-	_, err := conn.Exec(`WITH upsert AS
+func InsertHeartbeat(conn *pgxpool.Pool) {
+	_, err := conn.Exec(context.TODO(), `WITH upsert AS
 	(UPDATE _heartbeat SET last_heartbeat=current_timestamp WHERE id=1 RETURNING *)
 	INSERT INTO _heartbeat (id, last_heartbeat) SELECT 1, current_timestamp
 	WHERE NOT EXISTS (SELECT * FROM upsert);`)
@@ -25,12 +28,12 @@ func InsertHeartbeat(conn *pgx.Conn) {
 	}
 }
 
-func DropInactiveReplicationSlots(conn *pgx.Conn, repConn *pgx.ReplicationConn) {
+func DropInactiveReplicationSlots(conn *pgxpool.Pool, repConn *pgx.ReplicationConn) {
 	type ReplicationSlot struct {
 		SlotName string
 	}
 
-	rows, err := conn.Query(`select slot_name from pg_replication_slots where active = 'f'`)
+	rows, err := conn.Query(context.TODO(), `select slot_name from pg_replication_slots where active = 'f'`)
 	if err != nil {
 		log.Warn().Stack().Err(err).Msg("failed to query for inative replication slots")
 	}
@@ -50,25 +53,27 @@ func DropInactiveReplicationSlots(conn *pgx.Conn, repConn *pgx.ReplicationConn) 
 	}
 
 	for _, items := range inactiveSlots {
-		_, err := conn.Exec("select pg_drop_replication_slot($1)", items.SlotName)
+		log.Info().Msgf("dropping inactive replication slot: %s", items.SlotName)
+		_, err := conn.Exec(context.TODO(), "select pg_drop_replication_slot($1)", items.SlotName)
 		if err != nil {
 			log.Warn().Stack().Err(err).Msg("failed to drop inactive replication slot")
 		}
 	}
 }
 
-func Connect(config tg_models.DatabaseConfig) (*pgx.ReplicationConn, *pgx.Conn, error) {
+func Connect(config tg_models.DatabaseConfig) (*pgx.ReplicationConn, *pgxpool.Pool, error) {
 	port, err := strconv.ParseUint(config.DbPort, 10, 16)
 	if err != nil {
 		return nil, nil, err
 	}
-	dbConfig := pgx.ConnConfig{Database: config.DbDatabase, User: config.DbUser, Password: config.DbPassword, Host: config.DbHost, Port: uint16(port)}
-	repConn, err := pgx.ReplicationConnect(dbConfig)
+	repConfig := pgx.ConnConfig{Database: config.DbDatabase, User: config.DbUser, Password: config.DbPassword, Host: config.DbHost, Port: uint16(port)}
+	repConn, err := pgx.ReplicationConnect(repConfig)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	dbConn, err := pgx.Connect(dbConfig)
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", config.DbUser, config.DbPassword, config.DbHost, config.DbPort, config.DbDatabase)
+	dbConn, err := pgxpool.Connect(context.TODO(), connString)
 	if err != nil {
 		return nil, nil, err
 	}
