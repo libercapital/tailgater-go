@@ -15,7 +15,7 @@ import (
 	tg_models "gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/models"
 )
 
-func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.AmqpConfig) error {
+func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpClient amqp.AMQPService) error {
 	ctx := context.Background()
 
 	rand.Seed(time.Now().UnixNano())
@@ -25,8 +25,6 @@ func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.Amqp
 	if err != nil {
 		return fmt.Errorf("failed to connect to database with error: %w", err)
 	}
-
-	amqpClient := amqp.NewClient(amqpConfig)
 
 	set := pgoutput.NewRelationSet()
 
