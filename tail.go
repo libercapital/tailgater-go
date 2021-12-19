@@ -15,20 +15,26 @@ import (
 	tg_models "gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/models"
 )
 
-func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpClient amqp.AMQPService) error {
+func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.AmqpConfig) error {
 	ctx := context.Background()
 
 	rand.Seed(time.Now().UnixNano())
 	subscriberName := namesgenerator.GetRandomName(1)
 
-	repConn, dbConn, err := database.Connect(dbConfig)
+	databaseService := database.NewDatabaseService(dbConfig)
+
+	err := databaseService.Connect()
 	if err != nil {
 		return fmt.Errorf("failed to connect to database with error: %w", err)
 	}
 
+	repConn := databaseService.GetReplicationConnection()
+
 	set := pgoutput.NewRelationSet()
 
 	publish := func(relation uint32, row []pgoutput.Tuple) error {
+		amqpClient := amqp.NewClient(amqpConfig)
+		defer amqpClient.Close()
 		values, err := set.Values(relation, row)
 		if err != nil {
 			return fmt.Errorf("error parsing values: %w", err)
@@ -37,6 +43,8 @@ func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpClient amqp.AMQPServi
 		if err != nil {
 			return fmt.Errorf("error marshalling message: %w", err)
 		}
+
+		id := values["id"].Get()
 
 		exchange := values["exchange"].Get()
 		if exchange == nil {
@@ -57,6 +65,7 @@ func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpClient amqp.AMQPServi
 		if err != nil {
 			return fmt.Errorf("error publishing message: %w", err)
 		}
+		databaseService.SetOutboxMessageAsSent(id.(int64))
 		return nil
 	}
 
@@ -76,7 +85,7 @@ func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpClient amqp.AMQPServi
 		for {
 			select {
 			case <-ticker.C:
-				database.InsertHeartbeat(dbConn)
+				databaseService.InsertHeartbeat()
 			case <-quit:
 				ticker.Stop()
 				return
@@ -90,7 +99,7 @@ func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpClient amqp.AMQPServi
 		for {
 			select {
 			case <-dropTicker.C:
-				database.DropInactiveReplicationSlots(dbConn, repConn)
+				databaseService.DropInactiveReplicationSlots()
 			case <-quitDropTicker:
 				dropTicker.Stop()
 				return
