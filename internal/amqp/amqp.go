@@ -11,6 +11,7 @@ import (
 
 type AMQPService interface {
 	Publish(ctx context.Context, exchange string, routerKey string, corrID string, payload string) error
+	Close()
 }
 
 type amqpServiceImpl struct {
@@ -65,4 +66,11 @@ func (amqp amqpServiceImpl) Publish(ctx context.Context, exchange string, router
 		Msg("Published AMQP Message")
 
 	return nil
+}
+
+func (amqp amqpServiceImpl) Close() {
+	err := amqp.client.Close()
+	if err != nil {
+		log.Err(err).Stack().Msg("failed to close amqp connection at tailgater")
+	}
 }

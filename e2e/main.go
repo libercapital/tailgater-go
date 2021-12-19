@@ -2,21 +2,10 @@ package main
 
 import (
 	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git"
-	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/amqp"
 	tg_models "gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/models"
 )
 
 func main() {
-
-	amqpClient := amqp.NewClient(
-		tg_models.AmqpConfig{
-			Host:     "localhost",
-			User:     "guest",
-			Password: "guest",
-			Protocol: "AMQP",
-			VHost:    "/",
-		},
-	)
 
 	err := tailgater.StartFollowing(
 		tg_models.DatabaseConfig{
@@ -26,7 +15,13 @@ func main() {
 			DbPassword: "password",
 			DbPort:     "5432",
 		},
-		amqpClient,
+		tg_models.AmqpConfig{
+			Host:     "localhost",
+			User:     "guest",
+			Password: "guest",
+			Protocol: "AMQP",
+			VHost:    "/",
+		},
 	)
 
 	if err != nil {

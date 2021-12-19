@@ -9,7 +9,7 @@ require (
 	github.com/jackc/pgx/v4 v4.14.1
 	github.com/lib/pq v1.10.3 // indirect
 	github.com/rs/zerolog v1.26.0
-	gitlab.com/bavatech/architecture/software/libs/go-modules/rabbitmq-client.git v1.0.1
+	gitlab.com/bavatech/architecture/software/libs/go-modules/rabbitmq-client.git v1.0.3
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	golang.org/x/text v0.3.7 // indirect
 )
