@@ -70,6 +70,8 @@ func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.Amqp
 	}
 
 	handler := func(m pgoutput.Message) error {
+		log.Info().Interface("message", m).Msg("handler msg")
+
 		switch v := m.(type) {
 		case pgoutput.Relation:
 			set.Add(v)
@@ -110,6 +112,7 @@ func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.Amqp
 	sub := pgoutput.NewSubscription(subscriberName, "outbox_publication")
 	log.Info().
 		Msgf("%v: tailgater subscriber connected successfully", subscriberName)
+
 	if err := sub.Start(ctx, repConn, handler); err != nil {
 		return fmt.Errorf("error handling tail message: %w", err)
 	}
