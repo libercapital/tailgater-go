@@ -34,7 +34,6 @@ func pluginArgs(version, publication string) string {
 }
 
 func (s *Subscription) Start(ctx context.Context, conn *pgx.ReplicationConn, h Handler) error {
-	log.Info().Msg("start ok")
 	// TODO: Struct Validation here
 	_ = conn.DropReplicationSlot(s.Name)
 
@@ -50,8 +49,6 @@ func (s *Subscription) Start(ctx context.Context, conn *pgx.ReplicationConn, h H
 			return fmt.Errorf("failed to create replication slot: %s", err)
 		}
 	}
-
-	log.Info().Msg("CreateReplicationSlot ok")
 
 	// rows, err := conn.IdentifySystem()
 	// if err != nil {
@@ -77,8 +74,6 @@ func (s *Subscription) Start(ctx context.Context, conn *pgx.ReplicationConn, h H
 		return fmt.Errorf("failed to start replication: %s", err)
 	}
 
-	log.Info().Msg("StartReplication ok")
-
 	var maxWal uint64
 
 	sendStatus := func() error {
@@ -94,8 +89,6 @@ func (s *Subscription) Start(ctx context.Context, conn *pgx.ReplicationConn, h H
 
 	tick := time.NewTicker(s.StatusTimeout).C
 	for {
-		log.Info().Msg("for running ok")
-
 		select {
 		case <-tick:
 			if maxWal == 0 {
@@ -108,9 +101,6 @@ func (s *Subscription) Start(ctx context.Context, conn *pgx.ReplicationConn, h H
 			var message *pgx.ReplicationMessage
 			wctx, cancel := context.WithTimeout(ctx, s.WaitTimeout)
 			message, err = conn.WaitForReplicationMessage(wctx)
-
-			log.Info().Interface("message", message).Msg("message inside for")
-
 			cancel()
 			if err == context.DeadlineExceeded {
 				continue
@@ -119,8 +109,6 @@ func (s *Subscription) Start(ctx context.Context, conn *pgx.ReplicationConn, h H
 				return fmt.Errorf("replication failed: %s", err)
 			}
 			if message.WalMessage != nil {
-				log.Info().Interface("message", message).Msg("message after if")
-
 				if message.WalMessage.WalStart > maxWal {
 					maxWal = message.WalMessage.WalStart
 				}
@@ -128,8 +116,10 @@ func (s *Subscription) Start(ctx context.Context, conn *pgx.ReplicationConn, h H
 				if err != nil {
 					return fmt.Errorf("invalid pgoutput message: %s", err)
 				}
+
+				log.Info().Interface("msg_test", logmsg).Msg("message after if")
+
 				if err := h(logmsg); err != nil {
-					log.Error().Err(err).Msg("handler error")
 					return fmt.Errorf("error handling waldata: %s", err)
 				}
 			}
