@@ -61,7 +61,7 @@ func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.Amqp
 			correlationId = ""
 		}
 
-		log.Info().Interface("payload", string(payload)).Msg("inside handler")
+		log.Info().Interface("payload", string(payload)).Msg("before publish")
 
 		err = amqpClient.Publish(ctx, exchange.(string), routerKey.(string), correlationId.(string), string(payload))
 		if err != nil {
@@ -72,6 +72,7 @@ func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.Amqp
 	}
 
 	handler := func(m pgoutput.Message) error {
+		log.Info().Interface("payload", m).Msg("inside handler")
 		switch v := m.(type) {
 		case pgoutput.Relation:
 			set.Add(v)
