@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx"
-	"github.com/rs/zerolog/log"
 )
 
 type Subscription struct {
@@ -116,8 +115,6 @@ func (s *Subscription) Start(ctx context.Context, conn *pgx.ReplicationConn, h H
 				if err != nil {
 					return fmt.Errorf("invalid pgoutput message: %s", err)
 				}
-
-				log.Info().Interface("msg_test", logmsg).Msg("message after if")
 
 				if err := h(logmsg); err != nil {
 					return fmt.Errorf("error handling waldata: %s", err)
