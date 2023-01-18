@@ -2,6 +2,7 @@ package tailgater
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -46,9 +47,19 @@ func publish(ctx context.Context, set *pgoutput.RelationSet, outbox Tailgater, d
 			replyTo = time.Date(0, 0, 0, 0, 0, 0, 0, time.UTC)
 		}
 
+		var messageBytes []byte
+		message := values["message"].Get()
+
+		if message != nil {
+			if messageBytes, err = json.Marshal(message); err != nil {
+				return nil
+			}
+
+		}
+
 		outbox.Tail(TailMessage{
 			ID:            uint64(id.(int64)),
-			Message:       values["message"].Get(),
+			Message:       messageBytes,
 			Exchange:      exchange.(string),
 			RouterKey:     routerKey.(string),
 			CorrelationID: correlationId.(string),
@@ -61,4 +72,5 @@ func publish(ctx context.Context, set *pgoutput.RelationSet, outbox Tailgater, d
 
 		return nil
 	}
+
 }
