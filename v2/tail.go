@@ -37,7 +37,7 @@ func StartFollowing(dbConfig DatabaseConfig, outbox Tailgater) error {
 	handlerCaller := handler(set, publishCaller)
 
 	go func() {
-		ticker := time.NewTicker(10 * time.Minute)
+		ticker := time.NewTicker(10 * time.Second)
 		dropTicker := time.NewTicker(30 * time.Minute)
 
 		for range ticker.C {
