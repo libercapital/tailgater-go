@@ -52,12 +52,14 @@ func StartFollowing(dbConfig DatabaseConfig, outbox Tailgater) error {
 
 	go func() {
 		ticker := time.NewTicker(10 * time.Second)
-		dropTicker := time.NewTicker(30 * time.Minute)
-
 		for range ticker.C {
 			databaseService.InsertHeartbeat()
 		}
 
+	}()
+
+	go func() {
+		dropTicker := time.NewTicker(30 * time.Second)
 		for range dropTicker.C {
 			databaseService.DropInactiveReplicationSlots()
 		}
