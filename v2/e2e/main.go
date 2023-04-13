@@ -12,9 +12,9 @@ func main() {
 	err := tailgater.StartFollowing(
 		tailgater.DatabaseConfig{
 			DbHost:     "localhost",
-			DbDatabase: "payment-link",
+			DbDatabase: "postgres",
 			DbUser:     "postgres",
-			DbPassword: "postgres",
+			DbPassword: "password",
 			DbPort:     "5432",
 		},
 		amqpConnTailgater.(tailgater.Tailgater),

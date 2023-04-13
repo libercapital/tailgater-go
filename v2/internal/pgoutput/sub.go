@@ -105,7 +105,7 @@ func (s *Subscription) Start(ctx context.Context, conn *pgx.ReplicationConn, h H
 				continue
 			}
 			if err != nil {
-				return fmt.Errorf("replication failed: %s", err)
+				return err
 			}
 			if message.WalMessage != nil {
 				if message.WalMessage.WalStart > maxWal {

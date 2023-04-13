@@ -15,6 +15,22 @@ type Tailgater interface {
 	Tail(message TailMessage)
 }
 
+func startSubscription(ctx context.Context, sub *pgoutput.Subscription, dbService DatabaseService, handler pgoutput.Handler) error {
+	bavalogs.Info(ctx).Msgf("%v: tailgater subscriber connected successfully", sub.Name)
+
+	err := sub.Start(ctx, dbService.GetReplicationConnection(), handler)
+	if err != nil {
+		if err.Error() == "EOF" {
+			if err := dbService.Connect(); err != nil {
+				bavalogs.Error(ctx, err).Msgf("error in reconecct with database")
+				return err
+			}
+			return startSubscription(ctx, sub, dbService, handler)
+		}
+	}
+	return err
+}
+
 func StartFollowing(dbConfig DatabaseConfig, outbox Tailgater) error {
 	ctx := context.Background()
 
@@ -28,8 +44,6 @@ func StartFollowing(dbConfig DatabaseConfig, outbox Tailgater) error {
 
 	databaseService.DropInactiveReplicationSlots()
 
-	repConn := databaseService.GetReplicationConnection()
-
 	set := pgoutput.NewRelationSet()
 
 	publishCaller := publish(ctx, set, outbox, databaseService)
@@ -38,12 +52,14 @@ func StartFollowing(dbConfig DatabaseConfig, outbox Tailgater) error {
 
 	go func() {
 		ticker := time.NewTicker(10 * time.Second)
-		dropTicker := time.NewTicker(30 * time.Minute)
-
 		for range ticker.C {
 			databaseService.InsertHeartbeat()
 		}
 
+	}()
+
+	go func() {
+		dropTicker := time.NewTicker(30 * time.Second)
 		for range dropTicker.C {
 			databaseService.DropInactiveReplicationSlots()
 		}
@@ -53,11 +69,7 @@ func StartFollowing(dbConfig DatabaseConfig, outbox Tailgater) error {
 
 	sub := pgoutput.NewSubscription(subscriberName, outboxPublication)
 
-	bavalogs.Info(ctx).Msgf("%v: tailgater subscriber connected successfully", subscriberName)
-
-	if err := sub.Start(ctx, repConn, handlerCaller); err != nil {
-		return fmt.Errorf("error handling tail message: %w", err)
-	}
+	startSubscription(ctx, sub, databaseService, handlerCaller)
 
 	return nil
 }
