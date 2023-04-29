@@ -28,6 +28,8 @@ func startSubscription(ctx context.Context, sub *pgoutput.Subscription, dbServic
 			return startSubscription(ctx, sub, dbService, handler)
 		}
 	}
+
+	bavalogs.Error(ctx, err).Msgf("%v: subscription error", sub.Name)
 	return err
 }
 
