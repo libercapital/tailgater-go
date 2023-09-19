@@ -57,7 +57,7 @@ func publish(ctx context.Context, set *pgoutput.RelationSet, outbox Tailgater, d
 
 		}
 
-		outbox.Tail(TailMessage{
+		err = outbox.Tail(TailMessage{
 			ID:            uint64(id.(int64)),
 			Message:       messageBytes,
 			Exchange:      exchange.(string),
@@ -68,7 +68,9 @@ func publish(ctx context.Context, set *pgoutput.RelationSet, outbox Tailgater, d
 			Sent:          true,
 		})
 
-		databaseService.SetOutboxMessageAsSent(id.(int64))
+		if err == nil {
+			databaseService.SetOutboxMessageAsSent(id.(int64))
+		}
 
 		return nil
 	}

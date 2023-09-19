@@ -2,8 +2,10 @@ package tailgater
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -23,6 +25,7 @@ type DatabaseService interface {
 	DropInactiveReplicationSlots()
 	GetReplicationConnection() *pgx.ReplicationConn
 	SetOutboxMessageAsSent(id int64)
+	HandleNotSentMessages()
 }
 
 type databaseServiceImpl struct {
@@ -30,17 +33,72 @@ type databaseServiceImpl struct {
 	repConn       *pgx.ReplicationConn
 	dbConn        *pgxpool.Pool
 	hasSentColumn bool
+	outbox        Tailgater
 }
 
-func NewDatabaseService(dbConfig DatabaseConfig) DatabaseService {
+func NewDatabaseService(dbConfig DatabaseConfig, outbox Tailgater) DatabaseService {
 	return &databaseServiceImpl{
 		config: dbConfig,
+		outbox: outbox,
 	}
 }
 
 func createHeartbeatTable(conn *pgxpool.Pool) error {
 	_, err := conn.Exec(context.TODO(), fmt.Sprintf("CREATE TABLE IF NOT EXISTS	%s (id bigint NOT NULL, last_heartbeat timestamptz NOT NULL);", heartBeatTableName))
 	return err
+}
+
+func (db databaseServiceImpl) HandleNotSentMessages() {
+	ctx := context.Background()
+
+	query := fmt.Sprintf("select id, message, exchange, router_key, correlation_id, reply_to, created_at, sent  from %s where sent = false and created_at <= (current_timestamp - 5 * interval '1 second')", outboxTableName)
+
+	rows, err := db.dbConn.Query(ctx, query)
+
+	if err != nil {
+		bavalogs.Error(ctx, err).Msg("failed to query for not sent messages")
+		return
+	}
+
+	for rows.Next() {
+		var id uint64
+		var message map[string]any
+		var exchange, routerKey, correlationID, replyTo string
+		var createdAt time.Time
+		var sent bool
+
+		if err := rows.Scan(&id, &message, &exchange, &routerKey, &correlationID, &replyTo, &createdAt, &sent); err != nil {
+			bavalogs.Error(ctx, err).Msg("failed to scan not sent message")
+			continue
+		}
+
+		messageBytes, err := json.Marshal(message)
+
+		if err != nil {
+			bavalogs.Error(ctx, err).Msg("failed to marshal not sent message")
+			continue
+		}
+
+		tailMessage := TailMessage{
+			ID:            id,
+			CorrelationID: correlationID,
+			RouterKey:     routerKey,
+			Exchange:      exchange,
+			Sent:          sent,
+			ReplyTo:       replyTo,
+			CreatedAt:     createdAt,
+			Message:       messageBytes,
+		}
+
+		err = db.outbox.Tail(tailMessage)
+
+		if err != nil {
+			bavalogs.Error(ctx, err).Msg("error to tail not sent message")
+			continue
+		}
+
+		db.SetOutboxMessageAsSent(int64(id))
+	}
 }
 
 func (db databaseServiceImpl) GetReplicationConnection() *pgx.ReplicationConn {
