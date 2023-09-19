@@ -1,6 +1,6 @@
 module gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/v2
 
-go 1.16
+go 1.21
 
 require (
 	github.com/docker/docker v20.10.22+incompatible

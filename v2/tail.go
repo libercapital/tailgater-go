@@ -12,7 +12,7 @@ import (
 )
 
 type Tailgater interface {
-	Tail(message TailMessage)
+	Tail(message TailMessage) error
 }
 
 func startSubscription(ctx context.Context, sub *pgoutput.Subscription, dbService DatabaseService, handler pgoutput.Handler) error {
@@ -38,7 +38,7 @@ func StartFollowing(dbConfig DatabaseConfig, outbox Tailgater) error {
 
 	rand.Seed(time.Now().UnixNano())
 
-	databaseService := NewDatabaseService(dbConfig)
+	databaseService := NewDatabaseService(dbConfig, outbox)
 
 	if err := databaseService.Connect(); err != nil {
 		return fmt.Errorf("failed to connect to database with error: %w", err)
@@ -64,6 +64,13 @@ func StartFollowing(dbConfig DatabaseConfig, outbox Tailgater) error {
 		dropTicker := time.NewTicker(30 * time.Second)
 		for range dropTicker.C {
 			databaseService.DropInactiveReplicationSlots()
+		}
+	}()
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Minute)
+		for range ticker.C {
+			databaseService.HandleNotSentMessages()
 		}
 	}()
 
