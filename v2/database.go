@@ -25,7 +25,7 @@ type DatabaseService interface {
 	DropInactiveReplicationSlots()
 	GetReplicationConnection() *pgx.ReplicationConn
 	SetOutboxMessageAsSent(id int64)
-	HandleNotSentMessages()
+	HandleNotSentMessages(daysBefore int)
 }
 
 type databaseServiceImpl struct {
@@ -48,10 +48,13 @@ func createHeartbeatTable(conn *pgxpool.Pool) error {
 	return err
 }
 
-func (db databaseServiceImpl) HandleNotSentMessages() {
+func (db databaseServiceImpl) HandleNotSentMessages(daysBefore int) {
 	ctx := context.Background()
 
-	query := fmt.Sprintf("select id, message, exchange, router_key, correlation_id, reply_to, created_at, sent  from %s where sent = false and created_at <= (current_timestamp - 5 * interval '1 second')", outboxTableName)
+	query := fmt.Sprintf(`
+	select id, message, exchange, v_host, router_key, correlation_id, reply_to, created_at, sent from %s where sent = false
+	and created_at <= (current_timestamp - 5 * interval '1 second') 
+	and created_at >= (current_timestamp - interval '%d')`, outboxTableName, daysBefore)
 
 	rows, err := db.dbConn.Query(ctx, query)
 
@@ -63,11 +66,11 @@ func (db databaseServiceImpl) HandleNotSentMessages() {
 	for rows.Next() {
 		var id uint64
 		var message map[string]any
-		var exchange, routerKey, correlationID, replyTo string
+		var exchange, vHost, routerKey, correlationID, replyTo string
 		var createdAt time.Time
 		var sent bool
 
-		if err := rows.Scan(&id, &message, &exchange, &routerKey, &correlationID, &replyTo, &createdAt, &sent); err != nil {
+		if err := rows.Scan(&id, &message, &exchange, &vHost, &routerKey, &correlationID, &replyTo, &createdAt, &sent); err != nil {
 			bavalogs.Error(ctx, err).Msg("failed to scan not sent message")
 			continue
 		}
@@ -83,6 +86,7 @@ func (db databaseServiceImpl) HandleNotSentMessages() {
 			ID:            id,
 			CorrelationID: correlationID,
 			RouterKey:     routerKey,
+			VHost:         vHost,
 			Exchange:      exchange,
 			Sent:          sent,
 			ReplyTo:       replyTo,

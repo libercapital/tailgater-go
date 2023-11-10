@@ -13,6 +13,7 @@ type DatabaseConfig struct {
 type TailMessage struct {
 	ID            uint64
 	Message       []byte
+	VHost         string
 	Exchange      string
 	RouterKey     string
 	CorrelationID string
