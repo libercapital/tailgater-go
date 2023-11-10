@@ -33,7 +33,7 @@ func startSubscription(ctx context.Context, sub *pgoutput.Subscription, dbServic
 	return err
 }
 
-func StartFollowing(dbConfig DatabaseConfig, outbox Tailgater) error {
+func StartFollowing(dbConfig DatabaseConfig, outbox Tailgater, updateInterval time.Duration, daysBefore int) error {
 	ctx := context.Background()
 
 	rand.Seed(time.Now().UnixNano())
@@ -68,9 +68,9 @@ func StartFollowing(dbConfig DatabaseConfig, outbox Tailgater) error {
 	}()
 
 	go func() {
-		ticker := time.NewTicker(1 * time.Minute)
+		ticker := time.NewTicker(updateInterval)
 		for range ticker.C {
-			databaseService.HandleNotSentMessages()
+			databaseService.HandleNotSentMessages(daysBefore)
 		}
 	}()
 

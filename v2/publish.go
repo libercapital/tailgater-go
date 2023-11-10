@@ -21,6 +21,11 @@ func publish(ctx context.Context, set *pgoutput.RelationSet, outbox Tailgater, d
 			id = 0
 		}
 
+		vHost := values["v_host"].Get()
+		if vHost == nil {
+			vHost = ""
+		}
+
 		exchange := values["exchange"].Get()
 		if exchange == nil {
 			exchange = ""
@@ -60,6 +65,7 @@ func publish(ctx context.Context, set *pgoutput.RelationSet, outbox Tailgater, d
 		err = outbox.Tail(TailMessage{
 			ID:            uint64(id.(int64)),
 			Message:       messageBytes,
+			VHost:         vHost.(string),
 			Exchange:      exchange.(string),
 			RouterKey:     routerKey.(string),
 			CorrelationID: correlationId.(string),
