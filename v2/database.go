@@ -54,7 +54,7 @@ func (db databaseServiceImpl) HandleNotSentMessages(daysBefore int) {
 	query := fmt.Sprintf(`
 	select id, message, exchange, v_host, router_key, correlation_id, reply_to, created_at, sent from %s where sent = false
 	and created_at <= (current_timestamp - 5 * interval '1 second') 
-	and created_at >= (current_timestamp - interval '%d')`, outboxTableName, daysBefore)
+	and created_at >= (current_timestamp - interval '%d day')`, outboxTableName, daysBefore)
 
 	rows, err := db.dbConn.Query(ctx, query)
 
