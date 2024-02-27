@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/v2/internal/pgoutput"
+	"github.com/libercapital/tailgater-go/v2/internal/pgoutput"
 )
 
 func publish(ctx context.Context, set *pgoutput.RelationSet, outbox Tailgater, databaseService DatabaseService) func(relation uint32, row []pgoutput.Tuple) error {

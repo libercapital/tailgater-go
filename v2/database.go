@@ -9,7 +9,7 @@ import (
 
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"gitlab.com/bavatech/architecture/software/libs/go-modules/bavalogs.git"
+	liberlogger "github.com/libercapital/liber-logger-go"
 )
 
 const (
@@ -59,7 +59,7 @@ func (db databaseServiceImpl) HandleNotSentMessages(daysBefore int) {
 	rows, err := db.dbConn.Query(ctx, query)
 
 	if err != nil {
-		bavalogs.Error(ctx, err).Msg("failed to query for not sent messages")
+		liberlogger.Error(ctx, err).Msg("failed to query for not sent messages")
 		return
 	}
 
@@ -71,14 +71,14 @@ func (db databaseServiceImpl) HandleNotSentMessages(daysBefore int) {
 		var sent bool
 
 		if err := rows.Scan(&id, &message, &exchange, &vHost, &routerKey, &correlationID, &replyTo, &createdAt, &sent); err != nil {
-			bavalogs.Error(ctx, err).Msg("failed to scan not sent message")
+			liberlogger.Error(ctx, err).Msg("failed to scan not sent message")
 			continue
 		}
 
 		messageBytes, err := json.Marshal(message)
 
 		if err != nil {
-			bavalogs.Error(ctx, err).Msg("failed to marshal not sent message")
+			liberlogger.Error(ctx, err).Msg("failed to marshal not sent message")
 			continue
 		}
 
@@ -97,7 +97,7 @@ func (db databaseServiceImpl) HandleNotSentMessages(daysBefore int) {
 		err = db.outbox.Tail(tailMessage)
 
 		if err != nil {
-			bavalogs.Error(ctx, err).Msg("error to tail not sent message")
+			liberlogger.Error(ctx, err).Msg("error to tail not sent message")
 			continue
 		}
 
@@ -120,7 +120,7 @@ func (db *databaseServiceImpl) InsertHeartbeat() {
 	)
 
 	if _, err := db.dbConn.Exec(ctx, query); err != nil {
-		bavalogs.Error(ctx, err).Msg("failed to insert heartbeat row")
+		liberlogger.Error(ctx, err).Msg("failed to insert heartbeat row")
 	}
 }
 
@@ -128,7 +128,7 @@ func (db *databaseServiceImpl) DropInactiveReplicationSlots() {
 	ctx := context.Background()
 
 	if _, err := db.dbConn.Exec(context.TODO(), `select pg_drop_replication_slot(slot_name) from pg_replication_slots where active = 'f'`); err != nil {
-		bavalogs.Error(ctx, err).Msg("failed to query for inative replication slots")
+		liberlogger.Error(ctx, err).Msg("failed to query for inative replication slots")
 	}
 }
 
@@ -179,7 +179,7 @@ func (db *databaseServiceImpl) SetOutboxMessageAsSent(id int64) {
 
 	if db.hasSentColumn {
 		if _, err := db.dbConn.Exec(ctx, query, id); err != nil {
-			bavalogs.Error(ctx, err).Interface("id", id).Msgf("failed to update outbox message with id %v", id)
+			liberlogger.Error(ctx, err).Interface("id", id).Msgf("failed to update outbox message with id %v", id)
 		}
 	}
 }
@@ -189,6 +189,6 @@ func (db *databaseServiceImpl) verifySentColumnExists() {
 	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='%s' AND column_name='sent');", outboxTableName)
 
 	if err := db.dbConn.QueryRow(ctx, query).Scan(&db.hasSentColumn); err != nil {
-		bavalogs.Error(ctx, err).Msg("failed to verify if sent column exists")
+		liberlogger.Error(ctx, err).Msg("failed to verify if sent column exists")
 	}
 }

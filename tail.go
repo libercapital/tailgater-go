@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/namesgenerator"
+	"github.com/libercapital/tailgater-go/internal/amqp"
+	"github.com/libercapital/tailgater-go/internal/database"
+	"github.com/libercapital/tailgater-go/internal/pgoutput"
+	tg_models "github.com/libercapital/tailgater-go/models"
 	"github.com/rs/zerolog/log"
-	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/amqp"
-	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/database"
-	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/internal/pgoutput"
-	tg_models "gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/models"
 )
 
 func StartFollowing(dbConfig tg_models.DatabaseConfig, amqpConfig tg_models.AmqpConfig) error {

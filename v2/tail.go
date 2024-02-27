@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/namesgenerator"
-	"gitlab.com/bavatech/architecture/software/libs/go-modules/bavalogs.git"
-	"gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/v2/internal/pgoutput"
+	liberlogger "github.com/libercapital/liber-logger-go"
+	"github.com/libercapital/tailgater-go/v2/internal/pgoutput"
 )
 
 type Tailgater interface {
@@ -16,20 +16,20 @@ type Tailgater interface {
 }
 
 func startSubscription(ctx context.Context, sub *pgoutput.Subscription, dbService DatabaseService, handler pgoutput.Handler) error {
-	bavalogs.Info(ctx).Msgf("%v: tailgater subscriber connected successfully", sub.Name)
+	liberlogger.Info(ctx).Msgf("%v: tailgater subscriber connected successfully", sub.Name)
 
 	err := sub.Start(ctx, dbService.GetReplicationConnection(), handler)
 	if err != nil {
 		if err.Error() == "EOF" {
 			if err := dbService.Connect(); err != nil {
-				bavalogs.Error(ctx, err).Msgf("error in reconecct with database")
+				liberlogger.Error(ctx, err).Msgf("error in reconecct with database")
 				return err
 			}
 			return startSubscription(ctx, sub, dbService, handler)
 		}
 	}
 
-	bavalogs.Error(ctx, err).Msgf("%v: subscription error", sub.Name)
+	liberlogger.Error(ctx, err).Msgf("%v: subscription error", sub.Name)
 	return err
 }
 

@@ -7,8 +7,8 @@ import (
 
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/v4/pgxpool"
+	tg_models "github.com/libercapital/tailgater-go/models"
 	"github.com/rs/zerolog/log"
-	tg_models "gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/models"
 )
 
 const ERRCODE_DUPLICATE_OBJECT string = "42710"

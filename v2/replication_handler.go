@@ -1,6 +1,6 @@
 package tailgater
 
-import "gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/v2/internal/pgoutput"
+import "github.com/libercapital/tailgater-go/v2/internal/pgoutput"
 
 func handler(set *pgoutput.RelationSet, publish func(relation uint32, row []pgoutput.Tuple) error) func(m pgoutput.Message) error {
 	return func(m pgoutput.Message) error {

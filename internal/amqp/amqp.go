@@ -3,10 +3,10 @@ package amqp
 import (
 	"context"
 
+	"github.com/libercapital/liber-logger-go/tracing"
+	"github.com/libercapital/rabbitmq-client-go/v3"
+	tg_model "github.com/libercapital/tailgater-go/models"
 	"github.com/rs/zerolog/log"
-	"gitlab.com/bavatech/architecture/software/libs/go-modules/rabbitmq-client.git/app/client"
-	"gitlab.com/bavatech/architecture/software/libs/go-modules/rabbitmq-client.git/app/models"
-	tg_model "gitlab.com/bavatech/architecture/software/libs/go-modules/tailgater.git/models"
 )
 
 type AMQPService interface {
@@ -15,12 +15,12 @@ type AMQPService interface {
 }
 
 type amqpServiceImpl struct {
-	client    client.Client
-	publisher client.Publisher
+	client    rabbitmq.Client
+	publisher rabbitmq.Publisher
 }
 
 func NewClient(config tg_model.AmqpConfig) AMQPService {
-	credential := models.Credential{
+	credential := rabbitmq.Credential{
 		Host:     config.Host,
 		User:     config.User,
 		Password: config.Password,
@@ -28,7 +28,7 @@ func NewClient(config tg_model.AmqpConfig) AMQPService {
 		Vhost:    &config.VHost,
 	}
 
-	client, err := client.New(credential, 1)
+	client, err := rabbitmq.New(credential, rabbitmq.ClientOptions{ReconnectionDelay: 5})
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("error connecting to rabbitmq")
 	}
@@ -46,7 +46,7 @@ func NewClient(config tg_model.AmqpConfig) AMQPService {
 
 func (amqp amqpServiceImpl) Publish(ctx context.Context, exchange string, routerKey string, corrID string, payload string) error {
 
-	message := models.PublishingMessage{
+	message := rabbitmq.PublishingMessage{
 		Body: []byte(payload),
 	}
 
@@ -54,7 +54,7 @@ func (amqp amqpServiceImpl) Publish(ctx context.Context, exchange string, router
 		message.CorrelationId = corrID
 	}
 
-	err := amqp.publisher.SendMessage(exchange, routerKey, false, false, message)
+	err := amqp.publisher.SendMessage(ctx, exchange, routerKey, false, false, message, tracing.SpanConfig{})
 	if err != nil {
 		return err
 	}
