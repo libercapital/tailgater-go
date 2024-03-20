@@ -3,7 +3,7 @@ module github.com/libercapital/tailgater-go
 go 1.22
 
 require (
-	github.com/docker/docker v25.0.3+incompatible
+	github.com/docker/docker v25.0.5+incompatible
 	github.com/jackc/pgx v3.6.2+incompatible
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/libercapital/liber-logger-go v1.1.1
