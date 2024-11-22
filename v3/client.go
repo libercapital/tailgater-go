@@ -143,6 +143,8 @@ func (c *client) Subscribe(ctx context.Context) error {
 
 		timer := time.NewTicker(10 * time.Second)
 
+		defer timer.Stop()
+
 		for range timer.C {
 			err := c.insertHearbeat(ctx)
 
@@ -154,6 +156,8 @@ func (c *client) Subscribe(ctx context.Context) error {
 
 	go func() {
 		timer := time.NewTicker(c.config.UpdateInterval)
+
+		defer timer.Stop()
 
 		for range timer.C {
 			err := c.handleNotSentMessages(ctx, c.config.DaysBefore)
