@@ -5,6 +5,7 @@ go 1.23
 require (
 	github.com/docker/docker v27.3.1+incompatible
 	github.com/jackc/pglogrepl v0.0.0-20240307033717-828fbfe908e9
+	github.com/jackc/pgtype v1.14.4
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/libercapital/liber-logger-go v1.1.3
 	github.com/pkg/errors v0.9.1

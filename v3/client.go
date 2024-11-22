@@ -25,18 +25,20 @@ const (
 )
 
 type client struct {
-	config   TailgaterConfig
-	conn     *pgxpool.Pool
-	replConn *pgconn.PgConn
+	config    TailgaterConfig
+	conn      *pgxpool.Pool
+	replConn  *pgconn.PgConn
+	publisher Tailgater
 }
 
 type Client interface {
-	Subscribe(context.Context, Tailgater) error
+	Subscribe(context.Context) error
 }
 
-func New(config TailgaterConfig) Client {
+func New(config TailgaterConfig, publisher Tailgater) Client {
 	return &client{
-		config: config,
+		config:    config,
+		publisher: publisher,
 	}
 }
 
@@ -87,7 +89,7 @@ func (c *client) connect(ctx context.Context) error {
 }
 
 // Subscribe implements Client.
-func (c *client) Subscribe(ctx context.Context, publisher Tailgater) error {
+func (c *client) Subscribe(ctx context.Context) error {
 	err := c.connect(ctx)
 
 	if err != nil {
@@ -130,6 +132,32 @@ func (c *client) Subscribe(ctx context.Context, publisher Tailgater) error {
 	defer ticker.Stop()
 
 	relations := map[uint32]*pglogrepl.RelationMessage{}
+
+	go func() {
+		ticker := time.NewTimer(10 * time.Second)
+
+		for range ticker.C {
+			err := c.insertHearbeat(ctx)
+
+			if err != nil {
+				liberlogger.Error(ctx, err).Msg("failed to insert heartbeat")
+			}
+		}
+	}()
+
+	go func() {
+		ticker := time.NewTimer(c.config.UpdateInterval)
+
+		for range ticker.C {
+			err := c.handleNotSentMessages(ctx, c.config.DaysBefore)
+
+			if err != nil {
+				liberlogger.Error(ctx, err).Msg("failed to handle not sent messages")
+			}
+		}
+	}()
+
+	go func() {}()
 
 	for {
 		select {
@@ -184,7 +212,7 @@ func (c *client) Subscribe(ctx context.Context, publisher Tailgater) error {
 					clientXLogPos = xLogData.WALStart
 				}
 
-				err = c.processMessage(ctx, xLogData, publisher, relations)
+				err = c.processMessage(ctx, xLogData, c.publisher, relations)
 
 				if err != nil {
 					liberlogger.Error(ctx, errors.Wrap(err, "error to process message")).Send()
@@ -310,4 +338,108 @@ func (c *client) extractValues(insertMsg *pglogrepl.InsertMessage, relations map
 	}
 
 	return values, nil
+}
+
+func (c *client) createHeartbeatTable(ctx context.Context) error {
+	_, err := c.conn.Exec(
+		ctx,
+		fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (id bigint NOT NULL, last_heartbeat TIMESTAMPTZ NOT NULL", heartBeatTableName),
+	)
+
+	return err
+}
+
+func (c *client) insertHearbeat(ctx context.Context) error {
+	query := fmt.Sprintf(
+		`
+			WITH upsert AS (UPDATE %[1]s SET last_heartbeat=current_timestamp WHERE id=1 RETURNING *)
+			INSERT INTO %[1]s (id, last_heartbeat) SELECT 1, current_timestamp WHERE NOT EXISTS (SELECT * FROM upsert);
+		`,
+		heartBeatTableName,
+	)
+
+	_, err := c.conn.Exec(ctx, query)
+
+	if err != nil {
+		liberlogger.Error(ctx, err).Msg("failed to insert heartbeat row")
+		return errors.Wrap(err, "failed to insert heartbeat row")
+	}
+
+	return err
+}
+
+func (c *client) handleNotSentMessages(ctx context.Context, daysBefore int) error {
+	query := fmt.Sprintf(`
+		select id, message, exchange, v_host, router_key, correlation_id, reply_to, created_at, sent from %s where sent = false
+		and created_at <= (current_timestamp - 5 * interval '1 second')
+		and created_at >= (current_timestamp - interval '%d day')`, outboxTableName, daysBefore)
+
+	rows, err := c.conn.Query(ctx, query)
+
+	if err != nil {
+		liberlogger.Error(ctx, err).Msg("failed to select not sent messages")
+		return errors.Wrap(err, "failed to select not sent messages")
+	}
+
+	for rows.Next() {
+		var id uint64
+		var message map[string]any
+		var exchange, vHost, routerKey, correlationID, replyTo string
+		var createdAt time.Time
+		var sent bool
+
+		if err := rows.Scan(&id, &message, &exchange, &vHost, &routerKey, &correlationID, &replyTo, &createdAt, &sent); err != nil {
+			liberlogger.Error(ctx, err).Msg("failed to scan not sent message")
+			continue
+		}
+
+		messageBytes, err := json.Marshal(message)
+
+		if err != nil {
+			liberlogger.Error(ctx, err).Msg("failed to marshal message")
+			continue
+		}
+
+		msg := map[string]any{}
+
+		err = json.Unmarshal(messageBytes, &message)
+
+		if err != nil {
+			liberlogger.Error(ctx, err).Msg("failed to marshal message")
+			continue
+		}
+
+		tailMessage := TailMessage{
+			ID:            id,
+			CorrelationID: correlationID,
+			RouterKey:     routerKey,
+			VHost:         vHost,
+			Exchange:      exchange,
+			Sent:          sent,
+			ReplyTo:       replyTo,
+			CreatedAt:     createdAt,
+			Message:       msg,
+		}
+
+		err = c.publisher.Tail(ctx, tailMessage)
+
+		if err != nil {
+			liberlogger.Error(ctx, err).Msg("failed to publish message")
+			continue
+		}
+
+	}
+}
+
+func (c *client) setOutboxMessageAsSent(ctx context.Context, id int64) error {
+	query := fmt.Sprintf("update %s set sent = true where id=$1", outboxTableName)
+
+	_, err := c.conn.Exec(ctx, query, id)
+
+	if err != nil {
+		liberlogger.Error(ctx, err).Interface("id", id).Msgf("failed to update outbox message with id %v", id)
+		return errors.Wrap(err, "failed to update outbox message as sent")
+	}
+
+	return nil
 }

@@ -12,12 +12,14 @@ type DatabaseConfig struct {
 }
 
 type TailgaterConfig struct {
-	Host     string
-	Name     string
-	User     string
-	Password string
-	SSLMode  string
-	Port     string
+	Host           string
+	Name           string
+	User           string
+	Password       string
+	SSLMode        string
+	Port           string
+	UpdateInterval time.Duration
+	DaysBefore     int
 }
 
 type TailMessage struct {
