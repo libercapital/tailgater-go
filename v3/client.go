@@ -171,7 +171,7 @@ func (c *client) Subscribe(ctx context.Context) error {
 	for {
 		select {
 		case <-ticker.C:
-			err := pglogrepl.SendStandbyStatusUpdate(context.Background(), c.replConn, pglogrepl.StandbyStatusUpdate{
+			err := pglogrepl.SendStandbyStatusUpdate(ctx, c.replConn, pglogrepl.StandbyStatusUpdate{
 				WALWritePosition: clientXLogPos,
 				WALFlushPosition: clientXLogPos,
 				WALApplyPosition: clientXLogPos,
