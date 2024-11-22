@@ -168,8 +168,6 @@ func (c *client) Subscribe(ctx context.Context) error {
 		}
 	}()
 
-	go func() {}()
-
 	for {
 		select {
 		case <-ticker.C:
