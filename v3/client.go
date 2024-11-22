@@ -134,9 +134,16 @@ func (c *client) Subscribe(ctx context.Context) error {
 	relations := map[uint32]*pglogrepl.RelationMessage{}
 
 	go func() {
-		ticker := time.NewTimer(10 * time.Second)
+		err := c.createHeartbeatTable(ctx)
 
-		for range ticker.C {
+		if err != nil {
+			liberlogger.Error(ctx, err).Msg("failed to create heartbeat table")
+			return
+		}
+
+		timer := time.NewTicker(10 * time.Second)
+
+		for range timer.C {
 			err := c.insertHearbeat(ctx)
 
 			if err != nil {
@@ -146,9 +153,9 @@ func (c *client) Subscribe(ctx context.Context) error {
 	}()
 
 	go func() {
-		ticker := time.NewTimer(c.config.UpdateInterval)
+		timer := time.NewTicker(c.config.UpdateInterval)
 
-		for range ticker.C {
+		for range timer.C {
 			err := c.handleNotSentMessages(ctx, c.config.DaysBefore)
 
 			if err != nil {
@@ -343,7 +350,7 @@ func (c *client) extractValues(insertMsg *pglogrepl.InsertMessage, relations map
 func (c *client) createHeartbeatTable(ctx context.Context) error {
 	_, err := c.conn.Exec(
 		ctx,
-		fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (id bigint NOT NULL, last_heartbeat TIMESTAMPTZ NOT NULL", heartBeatTableName),
+		fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (id bigint NOT NULL, last_heartbeat TIMESTAMPTZ NOT NULL);", heartBeatTableName),
 	)
 
 	return err
@@ -393,22 +400,6 @@ func (c *client) handleNotSentMessages(ctx context.Context, daysBefore int) erro
 			continue
 		}
 
-		messageBytes, err := json.Marshal(message)
-
-		if err != nil {
-			liberlogger.Error(ctx, err).Msg("failed to marshal message")
-			continue
-		}
-
-		msg := map[string]any{}
-
-		err = json.Unmarshal(messageBytes, &message)
-
-		if err != nil {
-			liberlogger.Error(ctx, err).Msg("failed to marshal message")
-			continue
-		}
-
 		tailMessage := TailMessage{
 			ID:            id,
 			CorrelationID: correlationID,
@@ -418,7 +409,7 @@ func (c *client) handleNotSentMessages(ctx context.Context, daysBefore int) erro
 			Sent:          sent,
 			ReplyTo:       replyTo,
 			CreatedAt:     createdAt,
-			Message:       msg,
+			Message:       message,
 		}
 
 		err = c.publisher.Tail(ctx, tailMessage)
@@ -428,7 +419,15 @@ func (c *client) handleNotSentMessages(ctx context.Context, daysBefore int) erro
 			continue
 		}
 
+		err = c.setOutboxMessageAsSent(ctx, int64(id))
+
+		if err != nil {
+			liberlogger.Error(ctx, err).Msg("failed to set outbox message as sent")
+			continue
+		}
 	}
+
+	return nil
 }
 
 func (c *client) setOutboxMessageAsSent(ctx context.Context, id int64) error {
