@@ -2,15 +2,6 @@ package tailgater
 
 import "time"
 
-type DatabaseConfig struct {
-	DbHost        string
-	DbDatabase    string
-	DbUser        string
-	DbPassword    string
-	DbPort        string
-	OutboxChannel string
-}
-
 type TailgaterConfig struct {
 	Host           string
 	Name           string
