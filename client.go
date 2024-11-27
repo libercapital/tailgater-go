@@ -227,6 +227,7 @@ func (c *client) Subscribe(ctx context.Context) error {
 					liberlogger.Error(ctx, errors.Wrap(err, "error to process message")).Send()
 					continue
 				}
+
 			}
 
 		}
@@ -269,6 +270,12 @@ func (c *client) processMessage(ctx context.Context, xLogData pglogrepl.XLogData
 
 		if err != nil {
 			return errors.Wrap(err, "failed to publish message")
+		}
+
+		err = c.setOutboxMessageAsSent(ctx, int64(values["id"].(int)))
+
+		if err != nil {
+			return errors.Wrap(err, "failed to set outbox message as sent")
 		}
 
 		return nil
