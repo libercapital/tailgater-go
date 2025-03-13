@@ -1,7 +1,6 @@
 module github.com/libercapital/tailgater-go/v3
 
 go 1.23
-
 require (
 	github.com/docker/docker v27.3.1+incompatible
 	github.com/jackc/pglogrepl v0.0.0-20240307033717-828fbfe908e9
@@ -26,9 +25,9 @@ require (
 	github.com/rs/zerolog v1.32.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
-	golang.org/x/crypto v0.27.0 // indirect
-	golang.org/x/net v0.21.0 // indirect
-	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.25.0 // indirect
-	golang.org/x/text v0.18.0 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
+	golang.org/x/net v0.36.0 // indirect
+	golang.org/x/sync v0.11.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/text v0.22.0 // indirect
 )
